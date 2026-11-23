@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Benchmark — ReproKit{% endblock %}
+
+{% block style %}
+.statgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:22px 0}
+.stat{font-family:var(--mono);font-size:clamp(24px,4vw,32px);color:var(--accent);letter-spacing:-.02em}
+.statlbl{font-size:12.5px;color:var(--dim);margin-top:7px}
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13.5px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+td.num{font-family:var(--mono);font-size:12.5px;color:#c4cfdb}
+.method{font-size:13.5px;color:var(--dim);margin-top:16px}
+.method li{margin:8px 0 8px 18px}
+{% endblock %}
+
+{% block content %}
+<div class="wrap" style="padding-top:34px;padding-bottom:44px">
+  <div class="eyebrow">// we measured it</div>
+  <h1 style="font-size:clamp(22px,3.6vw,30px)">The number, not the vibe.</h1>
+  <p class="lede">Ten real issues where maintainers had to ask for more information, timed by
+     three raters — once from the original thread, once from a ReproKit report.</p>
+
+  {% if has_results %}
+  <div class="statgrid">
+    <div class="card"><div class="stat">{{ median_original }}</div>
+      <div class="statlbl">median time to a reproduction attempt — original report</div></div>
+    <div class="card"><div class="stat">{{ median_reprokit }}</div>
+      <div class="statlbl">same issues, ReproKit report</div></div>
+    <div class="card"><div class="stat">{{ abandoned }}</div>
+      <div class="statlbl">reports abandoned as unfollowable</div></div>
+  </div>
+
+  <table>
+    <thead><tr><th>Issue</th><th>Original</th><th>ReproKit</th><th>Verdict</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td class="num">{{ row.original }}</td>
+        <td class="num">{{ row.reprokit }}</td>
+        <td class="num">{{ row.outcome }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card" style="margin-top:22px">
+    <b>Study in progress.</b>
+    <p style="color:var(--dim);font-size:14px;margin-top:8px">
+      The 10-issue benchmark runs in the week of 24 November 2026. No numbers are published
+      here until they are measured — this page will never show an estimate dressed up as a result.
+    </p>
+  </div>
+  {% endif %}
+
+  <h2 style="margin-top:34px;font-size:18px">Method</h2>
+  <ul class="method">
+    <li>10 public issues from 3 mid-size repositories, each carrying a label or comment indicating
+        the maintainer asked for more information.</li>
+    <li>Two conditions per issue: the original report as posted, and a ReproKit report generated
+        from it. Identifying details stripped from both.</li>
+    <li>3 raters, each timed, order randomised to avoid practice effects.</li>
+    <li>Task: “Can you reproduce this from what's written? If yes, start now. If no, say what
+        you'd ask for.”</li>
+    <li>Time capped at 8 minutes; anything unresolved counts as abandoned as unfollowable.</li>
+    <li>Failure is reported as failure. If ReproKit does worse on any issue, that issue stays in
+        the table.</li>
+  </ul>
+
+  <p class="micro" style="margin-top:22px">Raw data and the exact harness live in the repository
+     under <code>benchmark/</code>.</p>
+</div>
+{% endblock %}

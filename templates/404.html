@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Not found — ReproKit{% endblock %}
+{% block content %}
+<div class="wrap" style="padding:64px 18px">
+  <div class="eyebrow">// 404</div>
+  <h1>That report isn't here.</h1>
+  <p class="lede">Reports expire after {{ retention_days }} days, and only the exact link works.
+     If you generated one, check the link you saved.</p>
+  <p style="margin-top:24px"><a class="btn" href="/">Start a new report</a></p>
+</div>
+{% endblock %}
