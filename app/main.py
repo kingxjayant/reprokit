@@ -265,7 +265,7 @@ def _render_question(request: Request, evidence: Evidence, found: dict, field: F
     found_labels = [
         (FIELD_META[Field(k)]["label"], (v[:70] + "…") if len(v) > 70 else v)
         for k, v in found.items()
-        if k in {f.value for f in Field}
+        if k in {f.value for f in Field}  # skip bookkeeping keys such as _redactions
     ]
     return templates().TemplateResponse(
         request,
@@ -339,6 +339,13 @@ def _render_report(request: Request, evidence: Evidence, found: dict,
     )
     s = report_mod.stats(evidence)
 
+    # Redactions can happen twice: while analysing the issue text, and every
+    # time an answer is submitted in the interview. Both must be counted, or
+    # the counter silently reports 0 for the most common case.
+    total_redactions = int(src.get("redactions") or 0) + int(
+        found.get("_redactions") or 0
+    )
+
     if rid is None:
         store().track("report_completed", {"rerunnable": rerunnable, "present": s["present"]})
         if rerunnable:
@@ -352,7 +359,7 @@ def _render_report(request: Request, evidence: Evidence, found: dict,
             "rerunnable": rerunnable,
             "missing": [(FIELD_META[f]["label"], FIELD_META[f]["why"]) for f in missing],
             "stats": s,
-            "redactions": int(src.get("redactions") or 0),
+            "redactions": total_redactions,
             "permalink": permalink,
             "expires_human": f"after {CONFIG.retention_days} days",
         },
@@ -376,7 +383,8 @@ def save_report(request: Request) -> RedirectResponse:
         verdict=VERDICT_RERUNNABLE if rerunnable else VERDICT_NOT_RERUNNABLE,
         fields_present=s["present"],
         missing_fields=[f.value for f in missing],
-        redactions=int(src.get("redactions") or 0),
+        redactions=int(src.get("redactions") or 0)
+        + int(found.get("_redactions") or 0),
         source_url=src.get("url"),
         source_owner=src.get("owner"),
         source_repo=src.get("repo"),
