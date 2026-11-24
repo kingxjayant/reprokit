@@ -79,10 +79,26 @@ class Funnel:
 
 
 class Store:
-    """Storage interface. Subclasses implement the three primitives."""
+    """Storage interface. Subclasses implement the three primitives.
+
+    Placeholder dialect lives here rather than in each query, so the inherited
+    methods below work unchanged on both backends. (This was a real bug: the
+    inherited queries used SQLite's ``?`` and failed on Postgres.)
+    """
+
+    #: ``?`` for SQLite, ``%s`` for psycopg.
+    placeholder = "?"
+    #: cast needed when writing a JSON string into a json/jsonb column.
+    json_cast = ""
 
     def __init__(self, retention_days: int = 90):
         self.retention_days = retention_days
+
+    def _sql(self, statement: str) -> str:
+        """Rewrite a query for this backend's placeholder dialect."""
+        if self.placeholder == "?":
+            return statement
+        return statement.replace("?", self.placeholder)
 
     # -- primitives -------------------------------------------------------
     def _execute(self, sql: str, params: tuple = ()) -> None:  # pragma: no cover
@@ -120,7 +136,7 @@ class Store:
         rid = new_id()
         expires = datetime.now(timezone.utc) + timedelta(days=self.retention_days)
         self._execute(
-            _sql(
+            self._sql(
                 """
                 insert into reports (id, source_url, source_owner, source_repo,
                     source_number, markdown, verdict, fields_present,
@@ -147,7 +163,7 @@ class Store:
 
     def get_report(self, rid: str) -> StoredReport | None:
         rows = self._query(
-            _sql(
+            self._sql(
                 "select id, markdown, verdict, fields_present, missing_fields,"
                 " redactions, source_url, pasted_input, created_at"
                 " from reports where id = ?"
@@ -189,13 +205,16 @@ class Store:
             raise ValueError(f"unknown analytics event: {event}")
         safe = _strip_sensitive(properties or {})
         self._execute(
-            _sql("insert into analytics_events (event, properties) values (?, ?)"),
+            self._sql(
+                "insert into analytics_events (event, properties) "
+                f"values (?, ?{self.json_cast})"
+            ),
             (event, json.dumps(safe)),
         )
 
     def funnel(self) -> Funnel:
         rows = self._query(
-            _sql("select event, count(*) from analytics_events group by event")
+            self._sql("select event, count(*) from analytics_events group by event")
         )
         counts = {r[0]: int(r[1]) for r in rows}
         return Funnel(
@@ -206,12 +225,12 @@ class Store:
 
     def purge_expired(self) -> int:
         now = datetime.now(timezone.utc).isoformat()
-        before = self._query(_sql("select count(*) from reports where expires_at < ?"), (now,))
-        self._execute(_sql("delete from reports where expires_at < ?"), (now,))
+        before = self._query(self._sql("select count(*) from reports where expires_at < ?"), (now,))
+        self._execute(self._sql("delete from reports where expires_at < ?"), (now,))
         return int(before[0][0]) if before else 0
 
     def count_reports(self) -> int:
-        rows = self._query(_sql("select count(*) from reports"))
+        rows = self._query(self._sql("select count(*) from reports"))
         return int(rows[0][0]) if rows else 0
 
 
@@ -266,6 +285,9 @@ class SQLiteStore(Store):
 
 class PostgresStore(Store):
     """Supabase / Postgres backend. Requires ``psycopg[binary]``."""
+
+    placeholder = "%s"
+    json_cast = "::jsonb"
 
     def __init__(self, dsn: str, retention_days: int = 90):
         super().__init__(retention_days)
@@ -323,11 +345,6 @@ class PostgresStore(Store):
 # --------------------------------------------------------------------------- #
 # helpers
 # --------------------------------------------------------------------------- #
-
-
-def _sql(statement: str) -> str:
-    """Placeholder dialect for the SQLite store. The Postgres store writes %s inline."""
-    return statement
 
 
 def _split_sql(sql: str) -> list[str]:
