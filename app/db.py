@@ -315,7 +315,7 @@ class PostgresStore(Store):
 
     def save_report(self, **kwargs) -> str:
         # Postgres uses native arrays rather than JSON strings
-        rid = new_id()
+        rid = kwargs.get("rid") or new_id()
         expires = datetime.now(timezone.utc) + timedelta(days=self.retention_days)
         self._execute(
             """
