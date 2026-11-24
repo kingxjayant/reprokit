@@ -48,7 +48,12 @@ _templates: Jinja2Templates | None = None
 
 
 def configure(store: Store | None = None, templates_dir: Path | None = None) -> None:
-    """Wire dependencies. Called at import for production, and by tests."""
+    """Wire dependencies. Called at import for production, and by tests.
+
+    On a serverless platform (Vercel) the process can be recycled between
+    requests, so startup work is idempotent and cheap: schema creation uses
+    ``CREATE TABLE IF NOT EXISTS`` and a connection is opened per instance.
+    """
     global _store, _templates
     _store = store or get_store(CONFIG.database_url, CONFIG.retention_days)
     _templates = Jinja2Templates(directory=str(templates_dir or ROOT / "templates"))

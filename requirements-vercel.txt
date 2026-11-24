@@ -1,0 +1,7 @@
+# Vercel's Python builder at /api/index.py resolves dependencies from this file
+# (or requirements.txt at the project root). Keep it in sync with requirements.txt.
+fastapi==0.165.0
+jinja2==3.1.6
+httpx==0.28.1
+python-multipart==0.0.20
+psycopg[binary]==3.2.3
