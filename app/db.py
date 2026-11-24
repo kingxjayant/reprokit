@@ -132,8 +132,11 @@ class Store:
         source_repo: str | None = None,
         source_number: int | None = None,
         pasted_input: bool = False,
+        rid: str | None = None,
     ) -> str:
-        rid = new_id()
+        # Callers may supply the id when the permalink has to be embedded in the
+        # Markdown before the row exists; otherwise the store mints one.
+        rid = rid or new_id()
         expires = datetime.now(timezone.utc) + timedelta(days=self.retention_days)
         self._execute(
             self._sql(

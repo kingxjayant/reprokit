@@ -26,7 +26,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from . import artifacts, github, report as report_mod
-from .db import VERDICT_NOT_RERUNNABLE, VERDICT_RERUNNABLE, Store, get_store
+from .db import (
+    VERDICT_NOT_RERUNNABLE,
+    VERDICT_RERUNNABLE,
+    Store,
+    get_store,
+    new_id,
+)
 from .env import ROOT, get_config
 from .fields import (
     FIELD_META,
@@ -376,9 +382,16 @@ def save_report(request: Request) -> RedirectResponse:
     except ValueError:
         src = {}
 
-    md = report_mod.render_markdown(evidence, source_url=src.get("url"))
+    # Mint the id before rendering so the copyable block can link to its own
+    # permalink. An agent consuming the report needs the canonical URL inside
+    # the artefact itself, not only in the browser address bar.
+    rid = new_id()
+    permalink = f"{CONFIG.base_url}/r/{rid}"
+    md = report_mod.render_markdown(
+        evidence, source_url=src.get("url"), permalink=permalink
+    )
     s = report_mod.stats(evidence)
-    rid = store().save_report(
+    saved_id = store().save_report(
         markdown=md,
         verdict=VERDICT_RERUNNABLE if rerunnable else VERDICT_NOT_RERUNNABLE,
         fields_present=s["present"],
@@ -390,7 +403,9 @@ def save_report(request: Request) -> RedirectResponse:
         source_repo=src.get("repo"),
         source_number=src.get("number"),
         pasted_input=bool(src.get("pasted")),
+        rid=rid,
     )
+    assert saved_id == rid
     store().track("report_shared", {"rerunnable": rerunnable})
     resp = RedirectResponse(f"/r/{rid}", status_code=303)
     clear_state(resp)
