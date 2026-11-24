@@ -28,3 +28,7 @@ benchmark/raw/
 .idea/
 .vscode/
 *.swp
+
+# ---- node (vercel cli is a local dev tool only) ----
+node_modules/
+.vercel/

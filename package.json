@@ -1,0 +1,8 @@
+{
+  "name": "reprokit-dev-tooling",
+  "private": true,
+  "description": "Local tooling only. The application is Python; this file exists so the Vercel CLI can be installed locally for deploy checks. It is not used at runtime.",
+  "devDependencies": {
+    "vercel": "^66.6.0"
+  }
+}
