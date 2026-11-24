@@ -160,3 +160,56 @@ If they stall anywhere, that stall is the next commit — not a new feature.
 - [ ] The verdict badge is believable when it says "not yet rerunnable"
 - [ ] Copy button works on Android Chrome
 - [ ] No page in the app contains the words "coming soon"
+
+---
+
+## 7. Domain: `reprokit.tech`
+
+Both hostnames are attached to the project already, so once the domain is
+registered only DNS is left.
+
+| Record | Name | Value | Notes |
+| --- | --- | --- | --- |
+| `A` | `@` | `216.198.79.1` | apex; backup `76.76.21.21` |
+| `CNAME` | `www` | `43be62f456d4298c.vercel-dns-017.com.` | backup `cname.vercel-dns.com.` |
+
+`www` is configured to **308-redirect to the apex**, so there is one canonical
+host and no duplicate-content or cookie-domain confusion. Do not add an `AAAA`
+record or a second A record for `www`.
+
+After DNS resolves:
+
+1. `APP_BASE_URL` in Vercel currently points at `https://reprokit.tech` on purpose,
+   so permalinks written into reports are already correct for the final domain.
+   While the domain is unregistered those links look dead; that is expected and
+   they start working the moment DNS is live.
+2. Confirm `https://reprokit.tech/healthz` returns `"database":"postgres"`.
+3. Re-run the end-to-end check in section 3 against the apex, not the
+   `vercel.app` alias.
+
+---
+
+## 8. Redeploying (auto-deploy is disabled on this project)
+
+Push to `main`, then create the deployment explicitly:
+
+```json
+{
+  "git_source": {"ref": "main", "repoId": "1469140554", "type": "github"},
+  "target": "production",
+  "project_settings": "{\"framework\":\"python\"}"
+}
+```
+
+`project_settings` must be a **JSON string**, not an object and not `null`.
+Per-deployment URLs are behind Vercel Authentication; always test through the
+project alias (`reprokit-iota.vercel.app`) or the apex domain.
+
+### The rule this project keeps learning the hard way
+
+The test suite runs against SQLite. Production runs Postgres. Every bug that has
+reached production so far — the placeholder dialect, the redaction counter, the
+dropped `rid` in the Postgres override — was invisible to a fully green suite.
+
+**A deploy is not done until the end-to-end flow has been run against the live
+URL and the row has been read back out of Supabase.**
